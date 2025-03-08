@@ -9,7 +9,8 @@ df = pd.read_csv("fcc-forum-pageviews.csv", parse_dates=['date'], index_col='dat
 
 # Clean data
 lower_quantile = df['value'].quantile(0.025)
-upper_quantile = df['value'].quantile(0.075)
+upper_quantile = df['value'].quantile(0.975)
+
 #keep only the rows where the value is between the 2.5th and 97.5th percentiles.
 df_cleaned = df[(df['value'] >= lower_quantile) & (df['value'] <= upper_quantile)]
 
@@ -33,35 +34,26 @@ def draw_line_plot():
 
 def draw_bar_plot():
     # Copy and modify data for monthly bar plot
-    df_bar = df_cleaned.copy() #Creates a copy of the cleaned DataFrame to avoid modifying the original data.
+    df_bar = df_cleaned.copy().reset_index()  # Reset index to get 'date' as a column
 
-    #Extract year and month from the index
+    # Extract year and month from date column
+    df_bar['year'] = df_bar['date'].dt.year
+    df_bar['month'] = df_bar['date'].dt.strftime('%B')  # Full month name
 
-    df_bar['year']=df_bar.index.year
-    df_bar['month']=df_bar.index.month_name()
-
-    #groupby year and month and then calculate the mean
-
-    df_bar=df_bar.groupby(['year', 'month'])['value'].mean().reset_index()
-
-    #Define the order of month for the plot
-
+    # Define the order of months for the plot
     month_order = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
 
-    # Ensure all months are included in the DataFrame
+    # Convert 'month' column to categorical type
     df_bar['month'] = pd.Categorical(df_bar['month'], categories=month_order, ordered=True)
 
-    # Pivot the data to create a wide format for plotting
-
-    df_bar = df_bar.pivot(index='year', columns='month', values='value')
+    # Group by year and month, then calculate the mean
+    df_bar = df_bar.groupby(['year', 'month'])['value'].mean().unstack()
 
     # Draw bar plot
     fig, ax = plt.subplots(figsize=(10, 8))
-
-    #plot the bar chart
     df_bar.plot(kind='bar', ax=ax)
 
     ax.set_xlabel("Years", fontsize=14)
